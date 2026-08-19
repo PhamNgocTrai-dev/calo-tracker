@@ -1,69 +1,259 @@
-import Image from "next/image";
+import Link from "next/link";
+import {
+  ArrowRight,
+  Database,
+  Droplets,
+  Flame,
+  LogIn,
+  Plus,
+  Scale,
+  Sparkles,
+  Target,
+  UtensilsCrossed,
+} from "lucide-react";
+import { AppHeader } from "@/components/app-header";
+import { DailyEnergyCard } from "@/components/daily-energy-card";
+import { GoalProgressCard } from "@/components/goal-progress-card";
+import { MacroProgress } from "@/components/macro-progress";
+import { MealList, type MealListItem } from "@/components/meal-list";
+import { StatCard } from "@/components/stat-card";
+import { getAuthState } from "@/lib/auth/session";
+import { getLiveDashboardData } from "@/lib/data/dashboard";
+import { dashboardSummary, recentMeals, weightGoal } from "@/lib/demo-data";
 
-export default function Home() {
+export default async function Home() {
+  const authState = await getAuthState();
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+      <AppHeader />
+      {authState.mode === "demo" ? (
+        <Dashboard
+          dateLabel={dashboardSummary.dateLabel}
+          caloriesConsumed={dashboardSummary.caloriesConsumed}
+          calorieTarget={dashboardSummary.calorieTarget}
+          burned={dashboardSummary.caloriesBurned}
+          protein={{ ...dashboardSummary.protein, target: dashboardSummary.protein.target }}
+          carbs={{ ...dashboardSummary.carbs, target: dashboardSummary.carbs.target }}
+          fat={{ ...dashboardSummary.fat, target: dashboardSummary.fat.target }}
+          mealCount={recentMeals.length}
+          currentWeight={weightGoal.currentWeight}
+          meals={recentMeals}
+          goal={weightGoal}
+          demo
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
+      ) : authState.mode === "unauthenticated" ? (
+        <UnauthenticatedDashboard />
+      ) : (
+        <LiveDashboard />
+      )}
+    </div>
+  );
+}
+
+async function LiveDashboard() {
+  const data = await getLiveDashboardData();
+
+  return (
+    <Dashboard
+      dateLabel={data.dateLabel}
+      caloriesConsumed={data.caloriesConsumed}
+      calorieTarget={data.calorieTarget}
+      burned={null}
+      protein={{ current: data.proteinG, target: null, unit: "g" }}
+      carbs={{ current: data.carbsG, target: null, unit: "g" }}
+      fat={{ current: data.fatG, target: null, unit: "g" }}
+      mealCount={data.mealCount}
+      currentWeight={data.currentWeight}
+      meals={data.recentMeals}
+      goal={data.goal}
+    />
+  );
+}
+
+function UnauthenticatedDashboard() {
+  return (
+    <main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
+      <section className="mx-auto max-w-2xl rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm sm:p-12 dark:border-slate-800 dark:bg-slate-900">
+        <span className="mx-auto grid size-16 place-items-center rounded-3xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+          <Database aria-hidden="true" className="size-7" />
+        </span>
+        <p className="mt-6 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+          Supabase đã kết nối
+        </p>
+        <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 dark:text-white">
+          Đăng nhập để xem dashboard của bạn
+        </h1>
+        <p className="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">
+          CaloFlow không trộn dữ liệu minh họa vào tài khoản thật. Sau khi đăng nhập, dashboard chỉ đọc các
+          bản ghi PostgreSQL mà RLS cho phép tài khoản của bạn truy cập.
+        </p>
+        <Link
+          href="/auth"
+          className="mt-7 inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-700"
+        >
+          <LogIn aria-hidden="true" className="size-4" /> Đăng nhập hoặc đăng ký
+        </Link>
+      </section>
+    </main>
+  );
+}
+
+type MacroValue = { current: number; target: number | null; unit: string };
+type GoalValue = {
+  startWeight: number;
+  currentWeight: number;
+  targetWeight: number;
+  targetDate: string;
+};
+
+function Dashboard({
+  dateLabel,
+  caloriesConsumed,
+  calorieTarget,
+  burned,
+  protein,
+  carbs,
+  fat,
+  mealCount,
+  currentWeight,
+  meals,
+  goal,
+  demo = false,
+}: {
+  dateLabel: string;
+  caloriesConsumed: number;
+  calorieTarget: number | null;
+  burned: number | null;
+  protein: MacroValue;
+  carbs: MacroValue;
+  fat: MacroValue;
+  mealCount: number;
+  currentWeight: number | null;
+  meals: MealListItem[];
+  goal: GoalValue | null;
+  demo?: boolean;
+}) {
+  return (
+    <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+      <section className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
+        <div>
+          <p className="text-sm font-semibold capitalize text-emerald-700 dark:text-emerald-400">
+            {dateLabel}
+          </p>
+          <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl dark:text-white">
+            Tổng quan dinh dưỡng 👋
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+            Theo dõi từng lựa chọn nhỏ để tiến gần hơn tới mục tiêu sức khỏe của bạn.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+        <div className="flex flex-wrap gap-3">
+          <Link
+            href="/calculator"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-800 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:hover:bg-slate-800"
           >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            <Sparkles aria-hidden="true" className="size-4 text-violet-500" /> Tính mục tiêu
+          </Link>
+          <Link
+            href="/meals"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700"
           >
-            Documentation
-          </a>
+            <Plus aria-hidden="true" className="size-4" /> Ghi bữa ăn
+          </Link>
         </div>
-      </main>
-    </div>
+      </section>
+
+      <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Chỉ số nhanh">
+        <StatCard
+          label={demo ? "Calo ròng" : "Calo đã nạp"}
+          value={`${(demo ? caloriesConsumed - (burned ?? 0) : caloriesConsumed).toLocaleString("vi-VN")} kcal`}
+          helper={demo ? "Đã trừ hoạt động" : "Từ nhật ký hôm nay"}
+          icon={Flame}
+          tone="emerald"
+        />
+        <StatCard
+          label="Cân nặng"
+          value={currentWeight === null ? "Chưa có" : `${currentWeight} kg`}
+          helper={goal ? `Mục tiêu ${goal.targetWeight} kg` : "Lưu mục tiêu để theo dõi"}
+          icon={Scale}
+          tone="violet"
+        />
+        <StatCard
+          label={demo ? "Nước uống" : "Nước uống"}
+          value={demo ? `${dashboardSummary.water.current} L` : "Chưa hỗ trợ"}
+          helper={demo ? `Mục tiêu ${dashboardSummary.water.target} L` : "Sẽ bổ sung ở phiên bản sau"}
+          icon={Droplets}
+          tone="blue"
+        />
+        <StatCard
+          label={demo ? "Chuỗi theo dõi" : "Bữa ăn hôm nay"}
+          value={demo ? "7 ngày" : `${mealCount} bữa`}
+          helper={demo ? "Tiếp tục duy trì" : "Đã lưu trong PostgreSQL"}
+          icon={demo ? Sparkles : UtensilsCrossed}
+          tone="amber"
+        />
+      </section>
+
+      <section className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]">
+        <DailyEnergyCard target={calorieTarget} consumed={caloriesConsumed} burned={burned} />
+        <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-950/[0.03] dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Dinh dưỡng</p>
+              <h2 className="mt-1 text-xl font-bold tracking-tight text-slate-950 dark:text-white">
+                Macro hôm nay
+              </h2>
+            </div>
+            <Link
+              href="/meals"
+              aria-label="Xem chi tiết bữa ăn"
+              className="grid size-9 place-items-center rounded-full bg-slate-100 text-slate-600 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
+            >
+              <ArrowRight aria-hidden="true" className="size-4" />
+            </Link>
+          </div>
+          <div className="mt-6 space-y-5">
+            <MacroProgress label="Protein" {...protein} color="emerald" />
+            <MacroProgress label="Carbohydrate" {...carbs} color="blue" />
+            <MacroProgress label="Chất béo" {...fat} color="amber" />
+          </div>
+        </article>
+      </section>
+
+      <section className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
+        <MealList meals={meals} />
+        {goal ? <GoalProgressCard {...goal} /> : <EmptyGoalCard />}
+      </section>
+
+      {demo ? (
+        <aside className="mt-6 rounded-3xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900 dark:bg-emerald-950/50">
+          <p className="text-sm font-semibold text-emerald-950 dark:text-emerald-100">
+            Dữ liệu hiện tại là dữ liệu minh họa
+          </p>
+          <p className="mt-1 text-sm leading-6 text-emerald-800 dark:text-emerald-300">
+            Tạo project Supabase và thêm biến môi trường theo README để chuyển sang authentication và dữ liệu
+            PostgreSQL thật.
+          </p>
+        </aside>
+      ) : null}
+    </main>
+  );
+}
+
+function EmptyGoalCard() {
+  return (
+    <article className="flex min-h-64 flex-col items-center justify-center rounded-3xl border border-slate-200 bg-white p-6 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <span className="grid size-12 place-items-center rounded-2xl bg-violet-50 text-violet-700 dark:bg-violet-950 dark:text-violet-300">
+        <Target aria-hidden="true" className="size-5" />
+      </span>
+      <h2 className="mt-4 font-bold text-slate-950 dark:text-white">Chưa có mục tiêu đang hoạt động</h2>
+      <p className="mt-2 max-w-xs text-sm leading-6 text-slate-500 dark:text-slate-400">
+        Tính BMR, TDEE và lưu mục tiêu để theo dõi tiến độ ở đây.
+      </p>
+      <Link href="/calculator" className="mt-4 text-sm font-bold text-violet-700 dark:text-violet-300">
+        Tạo mục tiêu
+      </Link>
+    </article>
   );
 }
