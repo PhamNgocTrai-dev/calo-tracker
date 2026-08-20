@@ -1,14 +1,14 @@
 # Hướng dẫn Database, Authentication, Email và Quy tắc tính CaloFlow
 
-Tài liệu này mô tả cách chuyển CaloFlow từ demo mode sang Supabase PostgreSQL thật, cách đăng nhập để xác định người dùng, cách gửi email xác nhận an toàn và các quy tắc tính BMR/TDEE/mục tiêu calo.
+Tài liệu này mô tả cách dùng Supabase PostgreSQL thật, cách đăng nhập để xác định người dùng, cách gửi email xác nhận an toàn và các quy tắc tính BMR/TDEE/mục tiêu calo.
 
 ## 1. Trạng thái ứng dụng
 
-CaloFlow có ba trạng thái:
+CaloFlow yêu cầu đăng nhập trước khi truy cập dữ liệu ứng dụng:
 
-1. Không có Supabase env: chạy demo mode, không lưu dữ liệu vĩnh viễn.
-2. Có Supabase env nhưng chưa đăng nhập: yêu cầu đăng nhập, không hiển thị dữ liệu demo như dữ liệu thật.
-3. Có Supabase env và đã đăng nhập: đọc/ghi PostgreSQL theo tài khoản hiện tại.
+1. Không có Supabase env: ứng dụng fail closed và chỉ cho truy cập trang login/register hướng dẫn setup cùng `/api/health`.
+2. Có Supabase env nhưng chưa đăng nhập: mọi trang ứng dụng chuyển hướng về `/login`.
+3. Có Supabase env và session hợp lệ: đọc/ghi PostgreSQL theo tài khoản hiện tại.
 
 Có thể kiểm tra trạng thái tại:
 
@@ -26,7 +26,7 @@ Kết quả DB thật phải chứa:
 }
 ```
 
-Nếu `database` là `demo-mode`, ứng dụng chưa đọc được `.env.local` hợp lệ.
+Nếu `database` là `unconfigured`, ứng dụng chưa đọc được `.env.local` hợp lệ và sẽ không mở các trang dữ liệu.
 
 ## 2. Tạo Supabase PostgreSQL thật
 
@@ -106,7 +106,7 @@ https://your-domain.com/auth/callback
 
 ### 3.2 Luồng đăng ký
 
-1. Người dùng nhập display name, email và password tại `/auth`.
+1. Người dùng nhập display name, email và password tại trang `/register` riêng biệt.
 2. Server Action validate dữ liệu.
 3. Supabase tạo identity trong `auth.users`.
 4. Trigger PostgreSQL tạo row trong `public.profiles` với cùng user ID.
@@ -147,7 +147,7 @@ Không lấy user ID từ hidden input hoặc dữ liệu browser tự khai.
 
 Supabase có email sender mặc định để thử luồng confirmation. Không cần cung cấp mật khẩu Gmail cho source code.
 
-Sender mặc định có giới hạn tốc độ và không phù hợp production lâu dài.
+Sender mặc định có giới hạn tốc độ rất thấp và có thể chỉ cho gửi tới email của thành viên project. Nếu form đăng ký báo `email_address_not_authorized`, `over_email_send_rate_limit` hoặc lỗi gửi confirmation email, hãy cấu hình Custom SMTP. Lỗi **HTTP 504** thường nghĩa là Supabase Auth chờ SMTP hoặc Auth Hook quá lâu; với Gmail, kiểm tra `smtp.gmail.com`, port `587`, username là email đầy đủ và Google App Password mới. Khi chỉ phát triển local, có thể tạm tắt **Confirm email** trong Authentication → Providers → Email để kiểm tra luồng tạo tài khoản ngay lập tức; production nên bật lại.
 
 ### 4.2 Production với Gmail SMTP
 
@@ -341,7 +341,7 @@ Unique partial index bảo đảm mỗi user chỉ có tối đa một goal acti
 ## 11. Kiểm tra DB thật end-to-end
 
 1. `/api/health` trả `database: configured`.
-2. Tạo tài khoản tại `/auth`.
+2. Tạo tài khoản tại `/register`, xác nhận email rồi đăng nhập tại `/login`.
 3. Nhận và mở email confirmation.
 4. Đăng nhập.
 5. Thêm món tại `/meals`.

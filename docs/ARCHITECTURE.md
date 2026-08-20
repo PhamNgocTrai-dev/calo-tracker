@@ -20,13 +20,15 @@ Database production nằm trên **Supabase**, tức PostgreSQL được quản l
 
 `meal_entries` dùng generated columns để PostgreSQL tính `total_calories`, `total_protein_g`, `total_carbs_g` và `total_fat_g` từ khối lượng cùng snapshot trên 100g.
 
-## 2. Ba mode của ứng dụng
+## 2. Trạng thái truy cập ứng dụng
 
-1. **Không có Supabase env**: dashboard và form bữa ăn chạy demo; dữ liệu chỉ ở UI/browser.
-2. **Đã cấu hình nhưng chưa đăng nhập**: hiển thị auth prompt, không giả dữ liệu demo là dữ liệu thật.
-3. **Đã cấu hình và đăng nhập**: Server Components đọc PostgreSQL; Server Actions ghi PostgreSQL.
+- `/login`, `/register`, `/auth/callback` và `/api/health` là các route public.
+- Dashboard `/`, `/meals`, `/calculator` và các trang ứng dụng tương lai được bảo vệ mặc định.
+- Khi chưa có session hợp lệ, `proxy.ts` chuyển hướng về `/login` và giữ tham số `next` an toàn.
+- Server Components vẫn gọi `requireAuthenticatedUser()`; Server Actions vẫn xác thực lại user; RLS vẫn là ranh giới cuối cùng.
+- Nếu thiếu Supabase env, ứng dụng fail closed: chỉ trang auth/setup và health có thể truy cập, không chạy demo data.
 
-`lib/supabase/config.ts` quyết định mode. Placeholder trong `.env.example` vẫn được coi là chưa cấu hình.
+`lib/supabase/config.ts` kiểm tra cấu hình. Placeholder trong `.env.example` vẫn được coi là chưa cấu hình.
 
 ## 3. Backend nằm ở đâu?
 
@@ -50,8 +52,8 @@ Browser
 - Client Components chỉ giữ state tương tác như theme, preview nutrition và form pending state.
 - Server Actions nằm cùng route feature (`app/auth/actions.ts`, `app/meals/actions.ts`, `app/calculator/actions.ts`).
 - Route Handlers dành cho callback/API boundary: `/auth/callback` và `/api/health`.
-- `proxy.ts` dùng `@supabase/ssr`, refresh auth cookie và chuyển tiếp no-cache headers.
-- `lib/auth/session.ts` trả về `demo`, `unauthenticated` hoặc `authenticated` và cache trong một server render.
+- `proxy.ts` dùng `@supabase/ssr`, refresh auth cookie, chuyển tiếp no-cache headers và thực hiện route guard sớm.
+- `lib/auth/session.ts` trả về `unauthenticated` hoặc `authenticated`, cache trong một server render và cung cấp `requireAuthenticatedUser()`.
 
 ## 4. Authentication flow
 
@@ -63,7 +65,7 @@ Browser
 6. `proxy.ts` refresh session ở request tiếp theo.
 7. Server luôn dùng `auth.getUser()` để lấy user đã được Supabase xác minh.
 
-Tham số redirect `next` chỉ được chấp nhận nếu bắt đầu bằng `/` nhưng không bắt đầu bằng `//`, ngăn open redirect sang domain ngoài.
+`lib/auth/routing.ts` tập trung route public và chuẩn hóa `next`: chỉ chấp nhận URL nội bộ, từ chối backslash, URL dạng `//` và các route auth gây vòng lặp.
 
 ## 5. Luồng lưu bữa ăn
 

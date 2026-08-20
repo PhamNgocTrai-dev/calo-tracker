@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, Clock3, UtensilsCrossed } from "lucide-react";
+import { DeleteMealButton } from "@/components/delete-meal-button";
 
 export type MealListItem = {
   id: string;
@@ -56,6 +57,7 @@ export function MealList({ meals }: { meals: MealListItem[] }) {
                 <p className="font-bold tabular-nums text-slate-900 dark:text-white">{meal.calories} kcal</p>
                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{meal.protein}g protein</p>
               </div>
+              <DeleteMealButton mealId={meal.id} mealName={meal.name} />
             </li>
           ))}
         </ul>

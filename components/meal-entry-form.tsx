@@ -3,6 +3,7 @@
 import { useActionState, useMemo, useState } from "react";
 import { CheckCircle2, Plus, Search, UtensilsCrossed } from "lucide-react";
 import { addMealAction, type MealActionState } from "@/app/meals/actions";
+import { DeleteMealButton } from "@/components/delete-meal-button";
 import { mealTypes } from "@/lib/domain/meals";
 
 const initialMealActionState: MealActionState = { status: "idle" };
@@ -206,6 +207,7 @@ export function MealEntryForm({ foods, recentMeals }: { foods: FoodOption[]; rec
                   </p>
                 </div>
                 <p className="text-sm font-bold tabular-nums">{meal.calories} kcal</p>
+                <DeleteMealButton mealId={meal.id} mealName={meal.foodName} />
               </li>
             ))}
           </ul>

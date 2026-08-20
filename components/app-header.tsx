@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { Calculator, CircleUserRound, LayoutDashboard, LogIn, LogOut, Salad } from "lucide-react";
+import { Calculator, LayoutDashboard, LogOut, Salad } from "lucide-react";
 import { signOutAction } from "@/app/auth/actions";
-import { getAuthState } from "@/lib/auth/session";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { requireAuthenticatedUser } from "@/lib/auth/session";
 
 const navigation = [
   { href: "/", label: "Tổng quan", icon: LayoutDashboard },
@@ -11,7 +11,7 @@ const navigation = [
 ];
 
 export async function AppHeader() {
-  const authState = await getAuthState();
+  const user = await requireAuthenticatedUser();
 
   return (
     <header className="border-b border-slate-200/80 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90">
@@ -46,55 +46,24 @@ export async function AppHeader() {
 
         <div className="flex items-center gap-2 sm:gap-3">
           <ThemeToggle />
-          {authState.mode === "authenticated" ? (
-            <>
-              <span className="hidden min-w-0 text-right sm:block">
-                <span className="block max-w-40 truncate text-sm font-semibold text-slate-900 dark:text-white">
-                  {authState.user.displayName ?? "Tài khoản của bạn"}
-                </span>
-                <span className="block max-w-40 truncate text-xs text-slate-500 dark:text-slate-400">
-                  {authState.user.email ?? "Đã đăng nhập"}
-                </span>
-              </span>
-              <form action={signOutAction}>
-                <button
-                  type="submit"
-                  className="grid size-10 place-items-center rounded-full border border-slate-200 bg-slate-50 text-slate-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-red-900 dark:hover:bg-red-950 dark:hover:text-red-300"
-                  aria-label="Đăng xuất"
-                  title="Đăng xuất"
-                >
-                  <LogOut aria-hidden="true" className="size-4.5" />
-                </button>
-              </form>
-            </>
-          ) : (
-            <>
-              <span className="hidden text-right lg:block">
-                <span className="block text-sm font-semibold text-slate-900 dark:text-white">
-                  {authState.mode === "demo" ? "Chế độ demo" : "Chưa đăng nhập"}
-                </span>
-                <span className="block text-xs text-slate-500 dark:text-slate-400">
-                  {authState.mode === "demo" ? "Dữ liệu chưa lưu vào DB" : "Đăng nhập để lưu dữ liệu"}
-                </span>
-              </span>
-              {authState.mode === "unauthenticated" ? (
-                <Link
-                  href="/auth"
-                  className="inline-flex h-10 items-center gap-2 rounded-full bg-emerald-600 px-3.5 text-sm font-bold text-white transition hover:bg-emerald-700"
-                >
-                  <LogIn aria-hidden="true" className="size-4" />
-                  <span className="hidden sm:inline">Đăng nhập</span>
-                </Link>
-              ) : (
-                <span
-                  className="grid size-10 place-items-center rounded-full border border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
-                  title="Chế độ demo"
-                >
-                  <CircleUserRound aria-hidden="true" className="size-5" />
-                </span>
-              )}
-            </>
-          )}
+          <span className="hidden min-w-0 text-right sm:block">
+            <span className="block max-w-40 truncate text-sm font-semibold text-slate-900 dark:text-white">
+              {user.displayName ?? "Tài khoản của bạn"}
+            </span>
+            <span className="block max-w-40 truncate text-xs text-slate-500 dark:text-slate-400">
+              {user.email ?? "Đã đăng nhập"}
+            </span>
+          </span>
+          <form action={signOutAction}>
+            <button
+              type="submit"
+              className="grid size-10 place-items-center rounded-full border border-slate-200 bg-slate-50 text-slate-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-red-900 dark:hover:bg-red-950 dark:hover:text-red-300"
+              aria-label="Đăng xuất"
+              title="Đăng xuất"
+            >
+              <LogOut aria-hidden="true" className="size-4.5" />
+            </button>
+          </form>
         </div>
       </div>
 

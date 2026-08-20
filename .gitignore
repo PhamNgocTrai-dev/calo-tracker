@@ -19,25 +19,58 @@
 /build
 
 # local Supabase
-/supabase/.branches
-/supabase/.temp
+/supabase/.branches/
+/supabase/.temp/
+/supabase/.env
 
-# misc
-.DS_Store
+# environment variables and local secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# private keys, certificates and credential bundles
 *.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.mobileprovision
 
-# debug
+# credential and secret files
+/secrets/
+/.secrets/
+credentials.json
+credentials.*.json
+service-account*.json
+*.secret
+*.secrets
+.npmrc
+
+# local databases and user data
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# deployment and local tool state
+.vercel/
+.claude/settings.local.json
+.claude/worktrees/
+
+# IDE and operating system files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*.local.json
+
+# debug logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
-
-# environment files
-.env*
-!.env.example
-
-# vercel
-.vercel
 
 # typescript
 *.tsbuildinfo

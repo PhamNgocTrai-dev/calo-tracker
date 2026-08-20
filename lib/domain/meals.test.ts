@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getMealTypeLabel, mealEntrySchema } from "./meals";
+import { deleteMealSchema, getMealTypeLabel, mealEntrySchema } from "./meals";
 
 const validMeal = {
   foodItemId: "550e8400-e29b-41d4-a716-446655440000",
@@ -19,5 +19,10 @@ describe("meal entry validation", () => {
 
   it.each([0, -20, 5_001])("rejects an invalid amount: %s", (amountG) => {
     expect(mealEntrySchema.safeParse({ ...validMeal, amountG }).success).toBe(false);
+  });
+
+  it("accepts only a UUID when deleting a meal", () => {
+    expect(deleteMealSchema.safeParse({ mealId: validMeal.foodItemId }).success).toBe(true);
+    expect(deleteMealSchema.safeParse({ mealId: "meal-123" }).success).toBe(false);
   });
 });

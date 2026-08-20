@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { mealEntrySchema } from "@/lib/domain/meals";
+import { deleteMealSchema, mealEntrySchema } from "@/lib/domain/meals";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -67,4 +67,51 @@ export async function addMealAction(
   revalidatePath("/meals");
   revalidatePath("/");
   return { status: "success", message: "Đã lưu bữa ăn vào PostgreSQL." };
+}
+
+export async function deleteMealAction(
+  _previousState: MealActionState,
+  formData: FormData,
+): Promise<MealActionState> {
+  if (!isSupabaseConfigured()) {
+    return { status: "error", message: "Supabase chưa được cấu hình." };
+  }
+
+  const parsed = deleteMealSchema.safeParse({
+    mealId: formData.get("mealId"),
+  });
+
+  if (!parsed.success) {
+    return {
+      status: "error",
+      message: parsed.error.issues[0]?.message ?? "Bữa ăn không hợp lệ.",
+    };
+  }
+
+  const supabase = await createSupabaseServerClient({ writableCookies: true });
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !authData.user) {
+    return { status: "error", message: "Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại." };
+  }
+
+  const { data: deletedMeal, error: deleteError } = await supabase
+    .from("meal_entries")
+    .delete()
+    .eq("id", parsed.data.mealId)
+    .eq("user_id", authData.user.id)
+    .select("id")
+    .maybeSingle();
+
+  if (deleteError) {
+    return { status: "error", message: "Không thể xóa bữa ăn. Vui lòng thử lại." };
+  }
+
+  if (!deletedMeal) {
+    return { status: "error", message: "Không tìm thấy bữa ăn hoặc bạn không có quyền xóa." };
+  }
+
+  revalidatePath("/meals");
+  revalidatePath("/");
+  return { status: "success", message: "Đã xóa bữa ăn khỏi nhật ký." };
 }

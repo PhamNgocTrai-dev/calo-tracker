@@ -1,56 +1,24 @@
 "use client";
 
-import { useActionState, useState, type FormEvent } from "react";
+import { useActionState } from "react";
 import { AlertTriangle, CheckCircle2, Gauge, HeartPulse, Save, Scale, Sparkles } from "lucide-react";
 import { saveGoalAction, type GoalActionState } from "@/app/calculator/actions";
-import { activityLevels, calculateGoalPlan, goalPlanSchema, type GoalPlan } from "@/lib/domain/calorie";
+import { activityLevels, type GoalPlan } from "@/lib/domain/calorie";
 
 const initialGoalActionState: GoalActionState = { status: "idle" };
 const inputClassName =
   "mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:border-slate-700 dark:bg-slate-950 dark:text-white";
 const numberFormatter = new Intl.NumberFormat("vi-VN");
 
-function toNumber(formData: FormData, name: string) {
-  return Number(formData.get(name));
-}
-
-export function GoalCalculator({ mode = "demo" }: { mode?: "demo" | "unauthenticated" | "authenticated" }) {
-  const [localPlan, setLocalPlan] = useState<GoalPlan | null>(null);
-  const [localError, setLocalError] = useState<string | null>(null);
+export function GoalCalculator() {
   const [serverState, formAction, pending] = useActionState(saveGoalAction, initialGoalActionState);
-  const plan = mode === "authenticated" ? (serverState.plan ?? null) : localPlan;
-  const error =
-    mode === "authenticated" ? (serverState.status === "error" ? serverState.message : null) : localError;
-
-  function handleLocalSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    const result = goalPlanSchema.safeParse({
-      sex: formData.get("sex"),
-      age: toNumber(formData, "age"),
-      heightCm: toNumber(formData, "heightCm"),
-      currentWeightKg: toNumber(formData, "currentWeightKg"),
-      targetWeightKg: toNumber(formData, "targetWeightKg"),
-      durationWeeks: toNumber(formData, "durationWeeks"),
-      activityLevel: formData.get("activityLevel"),
-    });
-
-    if (!result.success) {
-      setLocalPlan(null);
-      setLocalError("Vui lòng kiểm tra lại các trường. Công cụ hiện dành cho người từ 18 tuổi trở lên.");
-      return;
-    }
-
-    setLocalError(null);
-    setLocalPlan(calculateGoalPlan(result.data));
-  }
-
-  const formProps = mode === "authenticated" ? { action: formAction } : { onSubmit: handleLocalSubmit };
+  const plan = serverState.plan ?? null;
+  const error = serverState.status === "error" ? serverState.message : null;
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)]">
       <form
-        {...formProps}
+        action={formAction}
         className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-950/[0.03] sm:p-8 dark:border-slate-800 dark:bg-slate-900"
       >
         <div className="mb-7">
@@ -163,7 +131,7 @@ export function GoalCalculator({ mode = "demo" }: { mode?: "demo" | "unauthentic
           </p>
         ) : null}
 
-        {mode === "authenticated" && serverState.status === "success" ? (
+        {serverState.status === "success" ? (
           <p
             role="status"
             className="mt-5 rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
@@ -172,29 +140,13 @@ export function GoalCalculator({ mode = "demo" }: { mode?: "demo" | "unauthentic
           </p>
         ) : null}
 
-        {mode !== "authenticated" ? (
-          <p className="mt-5 rounded-2xl bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900 dark:bg-amber-950 dark:text-amber-200">
-            {mode === "demo"
-              ? "Đây là chế độ demo: kết quả chỉ tồn tại trên màn hình và chưa được lưu."
-              : "Bạn có thể tính thử, nhưng cần đăng nhập để lưu profile và mục tiêu vào database."}
-          </p>
-        ) : null}
-
         <button
           type="submit"
           disabled={pending}
           className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 disabled:cursor-wait disabled:opacity-60"
         >
-          {mode === "authenticated" ? (
-            <Save aria-hidden="true" className="size-5" />
-          ) : (
-            <Gauge aria-hidden="true" className="size-5" />
-          )}
-          {pending
-            ? "Đang tính và lưu..."
-            : mode === "authenticated"
-              ? "Tính và lưu mục tiêu"
-              : "Tính kế hoạch của tôi"}
+          <Save aria-hidden="true" className="size-5" />
+          {pending ? "Đang tính và lưu..." : "Tính và lưu mục tiêu"}
         </button>
       </form>
 

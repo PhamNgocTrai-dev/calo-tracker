@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { getSignUpErrorMessage } from "@/lib/auth/errors";
 import { normalizeNextPath } from "@/lib/auth/routing";
 import { getSiteUrl, isSupabaseConfigured } from "@/lib/supabase/config";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -73,17 +74,25 @@ export async function signUpAction(
   const next = normalizeNextPath(parsed.data.next);
   const callbackUrl = `${getSiteUrl()}/auth/callback?next=${encodeURIComponent(next)}`;
   const supabase = await createSupabaseServerClient({ writableCookies: true });
-  const { data, error } = await supabase.auth.signUp({
-    email: parsed.data.email,
-    password: parsed.data.password,
-    options: {
-      data: { display_name: parsed.data.displayName },
-      emailRedirectTo: callbackUrl,
-    },
-  });
+  let signUpResult;
+
+  try {
+    signUpResult = await supabase.auth.signUp({
+      email: parsed.data.email,
+      password: parsed.data.password,
+      options: {
+        data: { display_name: parsed.data.displayName },
+        emailRedirectTo: callbackUrl,
+      },
+    });
+  } catch {
+    return { status: "error", message: getSignUpErrorMessage({}) };
+  }
+
+  const { data, error } = signUpResult;
 
   if (error) {
-    return { status: "error", message: "Không thể tạo tài khoản. Vui lòng thử lại sau." };
+    return { status: "error", message: getSignUpErrorMessage(error) };
   }
 
   if (!data.session) {

@@ -15,6 +15,10 @@ export const mealEntrySchema = z.object({
   mealType: z.enum(["breakfast", "lunch", "dinner", "snack"]),
 });
 
+export const deleteMealSchema = z.object({
+  mealId: z.uuid("Bữa ăn không hợp lệ."),
+});
+
 export type MealEntryInput = z.infer<typeof mealEntrySchema>;
 
 export function getMealTypeLabel(type: MealType) {

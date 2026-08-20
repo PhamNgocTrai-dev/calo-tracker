@@ -4,10 +4,11 @@ Web app theo dõi calo, nhật ký bữa ăn và mục tiêu cân nặng. MVP d�
 
 ## Tính năng hiện có
 
-- Dashboard responsive, có dữ liệu demo khi chưa cấu hình Supabase.
+- Dashboard responsive chỉ hiển thị dữ liệu của tài khoản đã đăng nhập.
 - Light/dark mode theo lựa chọn người dùng, lưu trong `localStorage` với key `caloflow-theme`.
-- Đăng ký, xác nhận email, đăng nhập và đăng xuất bằng Supabase Auth.
-- Nhập bữa ăn thủ công và lưu nutrition snapshot vào PostgreSQL.
+- Route guard mặc định chặn toàn bộ trang ứng dụng khi chưa đăng nhập.
+- Trang `/login` và `/register` riêng biệt; xác nhận email và đăng xuất bằng Supabase Auth.
+- Nhập bữa ăn thủ công, lưu nutrition snapshot vào PostgreSQL và xóa bữa ăn thêm nhầm sau bước xác nhận.
 - Tính BMR/TDEE bằng Mifflin–St Jeor, giới hạn mục tiêu quá gấp và lưu profile/goal nguyên tử.
 - Dashboard đọc calo, macro, bữa ăn và mục tiêu thật theo ngày tại múi giờ tài khoản.
 - PostgreSQL migrations, seed món ăn, generated columns, indexes và Row Level Security.
@@ -29,13 +30,14 @@ Mở <http://localhost:3000>.
 
 Các route chính:
 
-- `/` — dashboard
-- `/auth` — đăng ký/đăng nhập
-- `/calculator` — tính và lưu BMR/TDEE/mục tiêu
-- `/meals` — nhập và xem bữa ăn
+- `/login` — đăng nhập
+- `/register` — tạo tài khoản
+- `/` — dashboard, yêu cầu đăng nhập
+- `/calculator` — tính và lưu BMR/TDEE/mục tiêu, yêu cầu đăng nhập
+- `/meals` — nhập và xem bữa ăn, yêu cầu đăng nhập
 - `/api/health` — trạng thái service và cấu hình database
 
-Nếu chưa có `.env.local`, ứng dụng chủ động chạy **demo mode**. Sau khi có Supabase env nhưng chưa đăng nhập, ứng dụng hiển thị lời mời đăng nhập thay vì giả dữ liệu demo là dữ liệu thật.
+`/auth` chỉ còn là route tương thích và chuyển hướng sang `/login`. Khi thiếu session, các trang ứng dụng tự chuyển về `/login?next=...`. Khi thiếu `.env.local`, ứng dụng fail closed thay vì hiển thị dữ liệu demo.
 
 ## Hướng dẫn setup Supabase từng bước
 
@@ -109,13 +111,13 @@ Sau khi sửa env, dừng và chạy lại dev server:
 npm run dev
 ```
 
-Kiểm tra <http://localhost:3000/api/health>. Trường `database` phải là `configured`, không còn là `demo-mode`.
+Kiểm tra <http://localhost:3000/api/health>. Trường `database` phải là `configured`, không phải `unconfigured`.
 
 ### 6. Kiểm tra luồng lưu dữ liệu
 
-1. Mở `/auth`, tạo tài khoản.
+1. Mở `/register`, tạo tài khoản.
 2. Mở email xác nhận trong cùng trình duyệt.
-3. Đăng nhập.
+3. Đăng nhập tại `/login`.
 4. Mở `/meals`, thêm một món rồi reload; món vẫn phải tồn tại.
 5. Mở `/calculator`, tính và lưu mục tiêu.
 6. Quay lại `/`; dashboard phải cập nhật calo, macro, cân nặng và goal.
@@ -134,7 +136,7 @@ Backend nằm ngay trong Next.js:
 - **Server Components** đọc dữ liệu trực tiếp từ Supabase; không gọi vòng qua API nội bộ.
 - **Server Actions** validate form, xác thực lại user rồi mutation database.
 - **Route Handler** `/auth/callback` đổi PKCE code lấy session; `/api/health` báo trạng thái service.
-- Root `proxy.ts` refresh Supabase auth cookie theo chuẩn Next.js 16.
+- Root `proxy.ts` refresh Supabase auth cookie và chuyển request chưa đăng nhập về `/login` theo chuẩn Next.js 16.
 - `lib/supabase/server.ts` tạo client phía server từ publishable key và session cookie.
 - Supabase Auth lưu identity trong `auth.users`.
 - PostgreSQL lưu dữ liệu nghiệp vụ trong schema `public`.
@@ -144,21 +146,25 @@ Khi thêm bữa ăn, browser chỉ gửi ID món, khối lượng và loại b�
 
 Khi lưu mục tiêu, server chạy lại Zod validation và `calculateGoalPlan()`, sau đó gọi RPC transaction. Browser không được quyết định BMR, TDEE hoặc calorie target cuối cùng.
 
-Xem thêm [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Xem thêm:
+
+- [Hướng dẫn người dùng về nguyên tắc tính](docs/USER_CALCULATION_GUIDE.md)
+- [Kiến trúc ứng dụng](docs/ARCHITECTURE.md)
+- [Database, authentication và công thức kỹ thuật](docs/DATABASE_AUTH_CALCULATION_GUIDE.md)
 
 ## Cấu trúc chính
 
 ```text
 app/                     Routes, Server Components, Server Actions, Route Handlers
 components/              UI tái sử dụng và các Client Component nhỏ
-lib/auth/                 Auth state phía server
+lib/auth/                 Auth state, route policy và safe redirect
 lib/data/                 Data loaders phía server
 lib/domain/               Validation và công thức sức khỏe thuần TypeScript
 lib/supabase/             Supabase config, clients và database types
 supabase/migrations/      PostgreSQL schema/RPC có version
 supabase/seed.sql         Dữ liệu món ăn ban đầu
 docs/                     Tài liệu kiến trúc
-proxy.ts                  Refresh Supabase session cookie
+proxy.ts                  Refresh session và chặn route riêng tư
 ```
 
 ## Quality checks

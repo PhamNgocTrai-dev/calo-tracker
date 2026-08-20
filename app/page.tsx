@@ -1,101 +1,34 @@
 import Link from "next/link";
-import {
-  ArrowRight,
-  Database,
-  Droplets,
-  Flame,
-  LogIn,
-  Plus,
-  Scale,
-  Sparkles,
-  Target,
-  UtensilsCrossed,
-} from "lucide-react";
+import { ArrowRight, Droplets, Flame, Plus, Scale, Sparkles, Target, UtensilsCrossed } from "lucide-react";
 import { AppHeader } from "@/components/app-header";
 import { DailyEnergyCard } from "@/components/daily-energy-card";
 import { GoalProgressCard } from "@/components/goal-progress-card";
 import { MacroProgress } from "@/components/macro-progress";
 import { MealList, type MealListItem } from "@/components/meal-list";
 import { StatCard } from "@/components/stat-card";
-import { getAuthState } from "@/lib/auth/session";
+import { requireAuthenticatedUser } from "@/lib/auth/session";
 import { getLiveDashboardData } from "@/lib/data/dashboard";
-import { dashboardSummary, recentMeals, weightGoal } from "@/lib/demo-data";
 
 export default async function Home() {
-  const authState = await getAuthState();
+  await requireAuthenticatedUser("/");
+  const data = await getLiveDashboardData();
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <AppHeader />
-      {authState.mode === "demo" ? (
-        <Dashboard
-          dateLabel={dashboardSummary.dateLabel}
-          caloriesConsumed={dashboardSummary.caloriesConsumed}
-          calorieTarget={dashboardSummary.calorieTarget}
-          burned={dashboardSummary.caloriesBurned}
-          protein={{ ...dashboardSummary.protein, target: dashboardSummary.protein.target }}
-          carbs={{ ...dashboardSummary.carbs, target: dashboardSummary.carbs.target }}
-          fat={{ ...dashboardSummary.fat, target: dashboardSummary.fat.target }}
-          mealCount={recentMeals.length}
-          currentWeight={weightGoal.currentWeight}
-          meals={recentMeals}
-          goal={weightGoal}
-          demo
-        />
-      ) : authState.mode === "unauthenticated" ? (
-        <UnauthenticatedDashboard />
-      ) : (
-        <LiveDashboard />
-      )}
+      <Dashboard
+        dateLabel={data.dateLabel}
+        caloriesConsumed={data.caloriesConsumed}
+        calorieTarget={data.calorieTarget}
+        protein={{ current: data.proteinG, target: null, unit: "g" }}
+        carbs={{ current: data.carbsG, target: null, unit: "g" }}
+        fat={{ current: data.fatG, target: null, unit: "g" }}
+        mealCount={data.mealCount}
+        currentWeight={data.currentWeight}
+        meals={data.recentMeals}
+        goal={data.goal}
+      />
     </div>
-  );
-}
-
-async function LiveDashboard() {
-  const data = await getLiveDashboardData();
-
-  return (
-    <Dashboard
-      dateLabel={data.dateLabel}
-      caloriesConsumed={data.caloriesConsumed}
-      calorieTarget={data.calorieTarget}
-      burned={null}
-      protein={{ current: data.proteinG, target: null, unit: "g" }}
-      carbs={{ current: data.carbsG, target: null, unit: "g" }}
-      fat={{ current: data.fatG, target: null, unit: "g" }}
-      mealCount={data.mealCount}
-      currentWeight={data.currentWeight}
-      meals={data.recentMeals}
-      goal={data.goal}
-    />
-  );
-}
-
-function UnauthenticatedDashboard() {
-  return (
-    <main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
-      <section className="mx-auto max-w-2xl rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm sm:p-12 dark:border-slate-800 dark:bg-slate-900">
-        <span className="mx-auto grid size-16 place-items-center rounded-3xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-          <Database aria-hidden="true" className="size-7" />
-        </span>
-        <p className="mt-6 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
-          Supabase đã kết nối
-        </p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 dark:text-white">
-          Đăng nhập để xem dashboard của bạn
-        </h1>
-        <p className="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">
-          CaloFlow không trộn dữ liệu minh họa vào tài khoản thật. Sau khi đăng nhập, dashboard chỉ đọc các
-          bản ghi PostgreSQL mà RLS cho phép tài khoản của bạn truy cập.
-        </p>
-        <Link
-          href="/auth"
-          className="mt-7 inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-700"
-        >
-          <LogIn aria-hidden="true" className="size-4" /> Đăng nhập hoặc đăng ký
-        </Link>
-      </section>
-    </main>
   );
 }
 
@@ -111,7 +44,6 @@ function Dashboard({
   dateLabel,
   caloriesConsumed,
   calorieTarget,
-  burned,
   protein,
   carbs,
   fat,
@@ -119,12 +51,10 @@ function Dashboard({
   currentWeight,
   meals,
   goal,
-  demo = false,
 }: {
   dateLabel: string;
   caloriesConsumed: number;
   calorieTarget: number | null;
-  burned: number | null;
   protein: MacroValue;
   carbs: MacroValue;
   fat: MacroValue;
@@ -132,7 +62,6 @@ function Dashboard({
   currentWeight: number | null;
   meals: MealListItem[];
   goal: GoalValue | null;
-  demo?: boolean;
 }) {
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
@@ -166,9 +95,9 @@ function Dashboard({
 
       <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Chỉ số nhanh">
         <StatCard
-          label={demo ? "Calo ròng" : "Calo đã nạp"}
-          value={`${(demo ? caloriesConsumed - (burned ?? 0) : caloriesConsumed).toLocaleString("vi-VN")} kcal`}
-          helper={demo ? "Đã trừ hoạt động" : "Từ nhật ký hôm nay"}
+          label="Calo đã nạp"
+          value={`${caloriesConsumed.toLocaleString("vi-VN")} kcal`}
+          helper="Từ nhật ký hôm nay"
           icon={Flame}
           tone="emerald"
         />
@@ -180,23 +109,23 @@ function Dashboard({
           tone="violet"
         />
         <StatCard
-          label={demo ? "Nước uống" : "Nước uống"}
-          value={demo ? `${dashboardSummary.water.current} L` : "Chưa hỗ trợ"}
-          helper={demo ? `Mục tiêu ${dashboardSummary.water.target} L` : "Sẽ bổ sung ở phiên bản sau"}
+          label="Nước uống"
+          value="Chưa hỗ trợ"
+          helper="Sẽ bổ sung ở phiên bản sau"
           icon={Droplets}
           tone="blue"
         />
         <StatCard
-          label={demo ? "Chuỗi theo dõi" : "Bữa ăn hôm nay"}
-          value={demo ? "7 ngày" : `${mealCount} bữa`}
-          helper={demo ? "Tiếp tục duy trì" : "Đã lưu trong PostgreSQL"}
-          icon={demo ? Sparkles : UtensilsCrossed}
+          label="Bữa ăn hôm nay"
+          value={`${mealCount} bữa`}
+          helper="Đã lưu trong PostgreSQL"
+          icon={UtensilsCrossed}
           tone="amber"
         />
       </section>
 
       <section className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]">
-        <DailyEnergyCard target={calorieTarget} consumed={caloriesConsumed} burned={burned} />
+        <DailyEnergyCard target={calorieTarget} consumed={caloriesConsumed} burned={null} />
         <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-950/[0.03] dark:border-slate-800 dark:bg-slate-900">
           <div className="flex items-center justify-between">
             <div>
@@ -225,18 +154,6 @@ function Dashboard({
         <MealList meals={meals} />
         {goal ? <GoalProgressCard {...goal} /> : <EmptyGoalCard />}
       </section>
-
-      {demo ? (
-        <aside className="mt-6 rounded-3xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900 dark:bg-emerald-950/50">
-          <p className="text-sm font-semibold text-emerald-950 dark:text-emerald-100">
-            Dữ liệu hiện tại là dữ liệu minh họa
-          </p>
-          <p className="mt-1 text-sm leading-6 text-emerald-800 dark:text-emerald-300">
-            Tạo project Supabase và thêm biến môi trường theo README để chuyển sang authentication và dữ liệu
-            PostgreSQL thật.
-          </p>
-        </aside>
-      ) : null}
     </main>
   );
 }

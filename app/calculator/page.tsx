@@ -1,6 +1,6 @@
 import { AppHeader } from "@/components/app-header";
 import { GoalCalculator } from "@/components/goal-calculator";
-import { getAuthState } from "@/lib/auth/session";
+import { requireAuthenticatedUser } from "@/lib/auth/session";
 
 export const metadata = {
   title: "Tính mục tiêu calo | CaloFlow",
@@ -8,7 +8,7 @@ export const metadata = {
 };
 
 export default async function CalculatorPage() {
-  const authState = await getAuthState();
+  await requireAuthenticatedUser("/calculator");
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -24,7 +24,7 @@ export default async function CalculatorPage() {
             mục tiêu. Kết quả chỉ mang tính tham khảo, không thay thế tư vấn y tế.
           </p>
         </div>
-        <GoalCalculator mode={authState.mode} />
+        <GoalCalculator />
       </main>
     </div>
   );

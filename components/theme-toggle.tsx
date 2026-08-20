@@ -1,19 +1,38 @@
 "use client";
 
+import { useLayoutEffect } from "react";
 import { Moon, Sun } from "lucide-react";
+import { resolveTheme, THEME_STORAGE_KEY, type Theme } from "@/lib/theme";
 
-const THEME_KEY = "caloflow-theme";
+function applyTheme(theme: Theme) {
+  const root = document.documentElement;
+  root.classList.toggle("dark", theme === "dark");
+  root.style.colorScheme = theme;
+}
+
+function readTheme(): Theme {
+  let savedTheme: string | null = null;
+
+  try {
+    savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+  } catch {
+    // Fall back to the operating system when storage is unavailable.
+  }
+
+  return resolveTheme(savedTheme, window.matchMedia("(prefers-color-scheme: dark)").matches);
+}
 
 export function ThemeToggle() {
-  function toggleTheme() {
-    const root = document.documentElement;
-    const willBeDark = !root.classList.contains("dark");
+  useLayoutEffect(() => {
+    applyTheme(readTheme());
+  }, []);
 
-    root.classList.toggle("dark", willBeDark);
-    root.style.colorScheme = willBeDark ? "dark" : "light";
+  function toggleTheme() {
+    const nextTheme: Theme = document.documentElement.classList.contains("dark") ? "light" : "dark";
+    applyTheme(nextTheme);
 
     try {
-      window.localStorage.setItem(THEME_KEY, willBeDark ? "dark" : "light");
+      window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
     } catch {
       // The visual toggle still works when storage is unavailable.
     }
