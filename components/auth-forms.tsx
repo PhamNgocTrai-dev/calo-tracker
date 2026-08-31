@@ -14,7 +14,7 @@ export function LoginForm({ nextPath = "/" }: { nextPath?: string }) {
   return (
     <AuthPanel
       title="Đăng nhập"
-      description="Tiếp tục theo dõi dữ liệu đã lưu của bạn."
+      description="Mỗi lần đăng nhập mở một phiên cố định 5 phút. Reload, chuyển trang hoặc thao tác không gia hạn thời gian này."
       action={formAction}
       state={state}
       pending={pending}

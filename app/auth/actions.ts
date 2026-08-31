@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { clearAbsoluteSessionCookie, issueAbsoluteSession } from "@/lib/auth/absolute-session.server";
+import { isAbsoluteSessionConfigured } from "@/lib/auth/absolute-session-config";
 import { getSignUpErrorMessage } from "@/lib/auth/errors";
 import { normalizeNextPath } from "@/lib/auth/routing";
 import { getSiteUrl, isSupabaseConfigured } from "@/lib/supabase/config";
@@ -27,6 +29,9 @@ export async function signInAction(
   if (!isSupabaseConfigured()) {
     return { status: "error", message: "Supabase chưa được cấu hình." };
   }
+  if (!isAbsoluteSessionConfigured()) {
+    return { status: "error", message: "Chính sách phiên đăng nhập phía server chưa được cấu hình." };
+  }
 
   const parsed = credentialsSchema.safeParse({
     email: formData.get("email"),
@@ -39,13 +44,21 @@ export async function signInAction(
   }
 
   const supabase = await createSupabaseServerClient({ writableCookies: true });
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data, error } = await supabase.auth.signInWithPassword({
     email: parsed.data.email,
     password: parsed.data.password,
   });
 
-  if (error) {
+  if (error || !data.user) {
     return { status: "error", message: "Email hoặc mật khẩu không đúng, hoặc email chưa được xác nhận." };
+  }
+
+  try {
+    await issueAbsoluteSession(data.user.id);
+  } catch {
+    await supabase.auth.signOut().catch(() => undefined);
+    await clearAbsoluteSessionCookie();
+    return { status: "error", message: "Không thể khởi tạo phiên đăng nhập 5 phút. Vui lòng thử lại." };
   }
 
   revalidatePath("/", "layout");
@@ -58,6 +71,9 @@ export async function signUpAction(
 ): Promise<AuthActionState> {
   if (!isSupabaseConfigured()) {
     return { status: "error", message: "Supabase chưa được cấu hình." };
+  }
+  if (!isAbsoluteSessionConfigured()) {
+    return { status: "error", message: "Chính sách phiên đăng nhập phía server chưa được cấu hình." };
   }
 
   const parsed = credentialsSchema.safeParse({
@@ -102,16 +118,33 @@ export async function signUpAction(
     };
   }
 
+  if (!data.user) {
+    await supabase.auth.signOut().catch(() => undefined);
+    return { status: "error", message: "Không thể xác định tài khoản vừa đăng ký." };
+  }
+
+  try {
+    await issueAbsoluteSession(data.user.id);
+  } catch {
+    await supabase.auth.signOut().catch(() => undefined);
+    await clearAbsoluteSessionCookie();
+    return { status: "error", message: "Không thể khởi tạo phiên đăng nhập 5 phút. Vui lòng thử lại." };
+  }
+
   revalidatePath("/", "layout");
   redirect(next);
 }
 
 export async function signOutAction() {
-  if (isSupabaseConfigured()) {
-    const supabase = await createSupabaseServerClient({ writableCookies: true });
-    await supabase.auth.signOut();
+  try {
+    if (isSupabaseConfigured()) {
+      const supabase = await createSupabaseServerClient({ writableCookies: true });
+      await supabase.auth.signOut();
+    }
+  } finally {
+    await clearAbsoluteSessionCookie();
     revalidatePath("/", "layout");
   }
 
-  redirect("/login");
+  redirect("/login?reason=signed-out");
 }

@@ -1,5 +1,37 @@
 import { describe, expect, it } from "vitest";
-import { calculateBmr, calculateGoalPlan, getActivityFactor, goalPlanSchema } from "./calorie";
+import { calculateBmi, calculateBmr, calculateGoalPlan, getActivityFactor, goalPlanSchema } from "./calorie";
+
+describe("BMI calculations", () => {
+  it("calculates and rounds BMI to one decimal place", () => {
+    expect(calculateBmi({ heightCm: 175, weightKg: 70 })).toEqual({
+      value: 22.9,
+      category: "healthy",
+      label: "Bình thường",
+      range: "18.5–24.9",
+      description: "BMI nằm trong khoảng tham chiếu phổ biến cho người trưởng thành.",
+    });
+  });
+
+  it.each([
+    [18.4, "underweight"],
+    [18.5, "healthy"],
+    [24.9, "healthy"],
+    [25, "overweight"],
+    [29.9, "overweight"],
+    [30, "obesity"],
+  ] as const)("classifies displayed BMI %s as %s", (bmi, category) => {
+    expect(calculateBmi({ heightCm: 200, weightKg: bmi * 4 })?.category).toBe(category);
+  });
+
+  it.each([
+    { heightCm: 0, weightKg: 70 },
+    { heightCm: 175, weightKg: 0 },
+    { heightCm: Number.NaN, weightKg: 70 },
+    { heightCm: 175, weightKg: Number.POSITIVE_INFINITY },
+  ])("returns null for invalid measurements", (input) => {
+    expect(calculateBmi(input)).toBeNull();
+  });
+});
 
 describe("calorie calculations", () => {
   it("calculates Mifflin-St Jeor BMR for a male profile", () => {
@@ -40,6 +72,7 @@ describe("calorie calculations", () => {
       activityLevel: "moderate",
     });
 
+    expect(plan.bmi).toMatchObject({ value: 22.9, category: "healthy" });
     expect(plan.tdee).toBe(2_556);
     expect(plan.dailyCalorieTarget).toBe(2_098);
     expect(plan.direction).toBe("lose");

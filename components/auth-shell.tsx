@@ -49,12 +49,28 @@ export function AuthShell({
 
 export function SupabaseConfigurationNotice() {
   return (
+    <ConfigurationNotice title="Supabase chưa được cấu hình">
+      Hãy thêm các biến Supabase trong <span className="font-mono">.env.local</span> rồi khởi động lại server
+      trên port 3000.
+    </ConfigurationNotice>
+  );
+}
+
+export function SessionConfigurationNotice() {
+  return (
+    <ConfigurationNotice title="Phiên đăng nhập 5 phút chưa được cấu hình">
+      Supabase đã có cấu hình, nhưng còn thiếu <span className="font-mono">AUTH_SESSION_SIGNING_SECRET</span>{" "}
+      trong <span className="font-mono">.env.local</span>. Hãy tạo secret mạnh, thêm trực tiếp vào file rồi
+      khởi động lại server.
+    </ConfigurationNotice>
+  );
+}
+
+function ConfigurationNotice({ title, children }: { title: string; children: ReactNode }) {
+  return (
     <section className="rounded-3xl border border-amber-200 bg-amber-50 p-6 text-center dark:border-amber-900 dark:bg-amber-950/50">
-      <h2 className="font-bold text-amber-950 dark:text-amber-100">Supabase chưa được cấu hình</h2>
-      <p className="mt-2 text-sm leading-6 text-amber-800 dark:text-amber-200">
-        Hãy thêm các biến môi trường trong <span className="font-mono">.env.local</span> rồi khởi động lại
-        server trên port 3000.
-      </p>
+      <h2 className="font-bold text-amber-950 dark:text-amber-100">{title}</h2>
+      <p className="mt-2 text-sm leading-6 text-amber-800 dark:text-amber-200">{children}</p>
     </section>
   );
 }

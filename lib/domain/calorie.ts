@@ -18,6 +18,43 @@ export const activityLevels = [
 export type ActivityLevel = (typeof activityLevels)[number]["value"];
 export type BiologicalSex = "male" | "female";
 
+export const bmiCategories = [
+  {
+    key: "underweight",
+    label: "Thiếu cân",
+    range: "Dưới 18.5",
+    description: "BMI thấp hơn khoảng tham chiếu phổ biến cho người trưởng thành.",
+  },
+  {
+    key: "healthy",
+    label: "Bình thường",
+    range: "18.5–24.9",
+    description: "BMI nằm trong khoảng tham chiếu phổ biến cho người trưởng thành.",
+  },
+  {
+    key: "overweight",
+    label: "Thừa cân",
+    range: "25.0–29.9",
+    description: "BMI cao hơn khoảng tham chiếu phổ biến cho người trưởng thành.",
+  },
+  {
+    key: "obesity",
+    label: "Béo phì",
+    range: "Từ 30.0",
+    description: "BMI nằm trong nhóm cần được đánh giá sức khỏe kỹ hơn.",
+  },
+] as const;
+
+export type BmiCategory = (typeof bmiCategories)[number];
+export type BmiCategoryKey = BmiCategory["key"];
+export type BmiResult = {
+  value: number;
+  category: BmiCategoryKey;
+  label: string;
+  range: string;
+  description: string;
+};
+
 export const goalPlanSchema = z.object({
   sex: z.enum(["male", "female"]),
   age: z.number().int().min(18).max(100),
@@ -31,6 +68,7 @@ export const goalPlanSchema = z.object({
 export type GoalPlanInput = z.infer<typeof goalPlanSchema>;
 
 export type GoalPlan = {
+  bmi: BmiResult;
   bmr: number;
   tdee: number;
   dailyCalorieAdjustment: number;
@@ -57,15 +95,52 @@ export function calculateBmr(input: Pick<GoalPlanInput, "sex" | "age" | "heightC
   return round(base + (input.sex === "male" ? 5 : -161), 1);
 }
 
+export function calculateBmi({
+  heightCm,
+  weightKg,
+}: {
+  heightCm: number;
+  weightKg: number;
+}): BmiResult | null {
+  if (!Number.isFinite(heightCm) || !Number.isFinite(weightKg) || heightCm <= 0 || weightKg <= 0) {
+    return null;
+  }
+
+  const heightM = heightCm / 100;
+  const value = round(weightKg / heightM ** 2, 1);
+  const category =
+    value < 18.5
+      ? bmiCategories[0]
+      : value < 25
+        ? bmiCategories[1]
+        : value < 30
+          ? bmiCategories[2]
+          : bmiCategories[3];
+
+  return {
+    value,
+    category: category.key,
+    label: category.label,
+    range: category.range,
+    description: category.description,
+  };
+}
+
 export function calculateGoalPlan(rawInput: GoalPlanInput): GoalPlan {
   const input = goalPlanSchema.parse(rawInput);
+  const bmi = calculateBmi({ heightCm: input.heightCm, weightKg: input.currentWeightKg });
   const bmr = calculateBmr(input);
+
+  if (!bmi) {
+    throw new Error("Không thể tính BMI từ chiều cao và cân nặng đã nhập.");
+  }
   const tdee = round(bmr * getActivityFactor(input.activityLevel), 0);
   const weightDeltaKg = input.targetWeightKg - input.currentWeightKg;
   const direction = weightDeltaKg < 0 ? "lose" : weightDeltaKg > 0 ? "gain" : "maintain";
 
   if (direction === "maintain") {
     return {
+      bmi,
       bmr,
       tdee,
       dailyCalorieAdjustment: 0,
@@ -105,6 +180,7 @@ export function calculateGoalPlan(rawInput: GoalPlanInput): GoalPlan {
   );
 
   return {
+    bmi,
     bmr,
     tdee,
     dailyCalorieAdjustment: round(dailyCalorieAdjustment, 0),

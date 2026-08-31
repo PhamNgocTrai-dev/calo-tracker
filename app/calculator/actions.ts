@@ -1,9 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getAuthenticatedMutationContext, getAuthFailureMessage } from "@/lib/auth/session";
 import { calculateGoalPlan, goalPlanSchema, type GoalPlan } from "@/lib/domain/calorie";
-import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type GoalActionState = {
   status: "idle" | "error" | "success";
@@ -19,10 +18,6 @@ export async function saveGoalAction(
   _previousState: GoalActionState,
   formData: FormData,
 ): Promise<GoalActionState> {
-  if (!isSupabaseConfigured()) {
-    return { status: "error", message: "Supabase chưa được cấu hình." };
-  }
-
   const parsed = goalPlanSchema.safeParse({
     sex: formData.get("sex"),
     age: toNumber(formData, "age"),
@@ -40,15 +35,14 @@ export async function saveGoalAction(
     };
   }
 
-  const supabase = await createSupabaseServerClient({ writableCookies: true });
-  const { data: authData, error: authError } = await supabase.auth.getUser();
-
-  if (authError || !authData.user) {
+  const auth = await getAuthenticatedMutationContext();
+  if (!auth.ok) {
     return {
       status: "error",
-      message: "Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại.",
+      message: getAuthFailureMessage(auth.reason),
     };
   }
+  const { supabase } = auth;
 
   const plan = calculateGoalPlan(parsed.data);
   const targetDate = new Date();

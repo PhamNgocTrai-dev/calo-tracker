@@ -19,7 +19,15 @@ function readTheme(): Theme {
     // Fall back to the operating system when storage is unavailable.
   }
 
-  return resolveTheme(savedTheme, window.matchMedia("(prefers-color-scheme: dark)").matches);
+  let prefersDark = false;
+
+  try {
+    prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  } catch {
+    // Keep the light fallback when matchMedia is unavailable.
+  }
+
+  return resolveTheme(savedTheme, prefersDark);
 }
 
 export function ThemeToggle() {

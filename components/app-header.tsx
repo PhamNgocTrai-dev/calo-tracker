@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { Calculator, LayoutDashboard, LogOut, Salad } from "lucide-react";
 import { signOutAction } from "@/app/auth/actions";
+import { SessionCountdown } from "@/components/session-countdown";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { requireAuthenticatedUser } from "@/lib/auth/session";
+import { requireAuthenticatedSession } from "@/lib/auth/session";
 
 const navigation = [
   { href: "/", label: "Tổng quan", icon: LayoutDashboard },
@@ -11,7 +12,8 @@ const navigation = [
 ];
 
 export async function AppHeader() {
-  const user = await requireAuthenticatedUser();
+  const session = await requireAuthenticatedSession();
+  const { user } = session;
 
   return (
     <header className="border-b border-slate-200/80 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90">
@@ -45,6 +47,11 @@ export async function AppHeader() {
         </nav>
 
         <div className="flex items-center gap-2 sm:gap-3">
+          <SessionCountdown
+            key={`${session.expiresAtMs}-${session.serverNowMs}`}
+            expiresAtMs={session.expiresAtMs}
+            serverNowMs={session.serverNowMs}
+          />
           <ThemeToggle />
           <span className="hidden min-w-0 text-right sm:block">
             <span className="block max-w-40 truncate text-sm font-semibold text-slate-900 dark:text-white">

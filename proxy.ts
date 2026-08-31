@@ -1,6 +1,15 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { buildLoginPath, isPublicRoute } from "@/lib/auth/routing";
+import {
+  ABSOLUTE_SESSION_COOKIE_NAME,
+  verifyAbsoluteSessionToken,
+  type AbsoluteSessionPayload,
+} from "@/lib/auth/absolute-session";
+import {
+  getAbsoluteSessionSigningSecret,
+  isAbsoluteSessionConfigured,
+} from "@/lib/auth/absolute-session-config";
+import { buildLoginPath, isPublicRoute, type LoginReason } from "@/lib/auth/routing";
 import { getSupabaseConfig, isSupabaseConfigured } from "@/lib/supabase/config";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -15,18 +24,54 @@ function copySessionState(source: NextResponse, target: NextResponse) {
   return target;
 }
 
-function redirectToLogin(request: NextRequest, sessionResponse: NextResponse) {
+function redirectToLogin(
+  request: NextRequest,
+  sessionResponse: NextResponse,
+  reason: LoginReason = "required",
+) {
   const requestedPath = `${request.nextUrl.pathname}${request.nextUrl.search}`;
-  const loginUrl = new URL(buildLoginPath(requestedPath), request.url);
-  return copySessionState(sessionResponse, NextResponse.redirect(loginUrl));
+  const loginUrl = new URL(buildLoginPath(requestedPath, reason), request.url);
+  const redirectResponse = copySessionState(sessionResponse, NextResponse.redirect(loginUrl));
+  redirectResponse.cookies.set(ABSOLUTE_SESSION_COOKIE_NAME, "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+    expires: new Date(0),
+  });
+  return redirectResponse;
+}
+
+function verifyRequestDeadline(request: NextRequest) {
+  try {
+    return verifyAbsoluteSessionToken({
+      token: request.cookies.get(ABSOLUTE_SESSION_COOKIE_NAME)?.value,
+      nowMs: Date.now(),
+      secret: getAbsoluteSessionSigningSecret(),
+    });
+  } catch {
+    return null;
+  }
 }
 
 export async function proxy(request: NextRequest) {
   const publicRoute = isPublicRoute(request.nextUrl.pathname);
   let response = NextResponse.next({ request });
+  let absoluteSession: AbsoluteSessionPayload | null = null;
 
-  if (!isSupabaseConfigured()) {
+  if (!isSupabaseConfigured() || !isAbsoluteSessionConfigured()) {
     return publicRoute ? response : redirectToLogin(request, response);
+  }
+
+  if (!publicRoute) {
+    const verification = verifyRequestDeadline(request);
+
+    if (!verification || !verification.ok) {
+      return redirectToLogin(request, response, verification?.reason === "expired" ? "expired" : "required");
+    }
+
+    absoluteSession = verification.session;
   }
 
   const { url, publishableKey } = getSupabaseConfig();
@@ -45,10 +90,26 @@ export async function proxy(request: NextRequest) {
   });
 
   const { data, error } = await supabase.auth.getClaims();
-  const authenticated = !error && typeof data?.claims?.sub === "string";
+  const userId = !error && typeof data?.claims?.sub === "string" ? data.claims.sub : null;
 
-  if (!publicRoute && !authenticated) {
-    return redirectToLogin(request, response);
+  if (!publicRoute) {
+    const finalVerification = verifyRequestDeadline(request);
+
+    if (!finalVerification || !finalVerification.ok) {
+      return redirectToLogin(
+        request,
+        response,
+        finalVerification?.reason === "expired" ? "expired" : "required",
+      );
+    }
+
+    if (!userId || absoluteSession?.uid !== userId || finalVerification.session.uid !== userId) {
+      return redirectToLogin(request, response);
+    }
+  }
+
+  if (!publicRoute) {
+    response.headers.set("Cache-Control", "private, no-store");
   }
 
   return response;

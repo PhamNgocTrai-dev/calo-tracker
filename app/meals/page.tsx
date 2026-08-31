@@ -1,6 +1,7 @@
 import { AppHeader } from "@/components/app-header";
-import { MealEntryForm, type FoodOption, type SavedMealItem } from "@/components/meal-entry-form";
+import { MealEntryForm, type SavedMealItem } from "@/components/meal-entry-form";
 import { requireAuthenticatedUser } from "@/lib/auth/session";
+import { getFoodCatalog } from "@/lib/data/foods";
 import { getMealTypeLabel, type MealType } from "@/lib/domain/meals";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -13,26 +14,17 @@ export default async function MealsPage() {
   await requireAuthenticatedUser("/meals");
 
   const supabase = await createSupabaseServerClient();
-  const [foodsResult, mealsResult] = await Promise.all([
-    supabase
-      .from("food_items")
-      .select("id, name, calories_per_100g, protein_g_per_100g, carbs_g_per_100g, fat_g_per_100g")
-      .order("name"),
+  const [foods, mealsResult] = await Promise.all([
+    getFoodCatalog(),
     supabase
       .from("meal_entries")
-      .select("id, food_name_snapshot, meal_type, amount_g, total_calories, eaten_at")
+      .select(
+        "id, food_name_snapshot, food_image_key_snapshot, meal_type, amount_g, total_calories, eaten_at",
+      )
       .order("eaten_at", { ascending: false })
       .limit(20),
   ]);
 
-  const foods: FoodOption[] = (foodsResult.data ?? []).map((food) => ({
-    id: food.id,
-    name: food.name,
-    calories: Number(food.calories_per_100g),
-    protein: Number(food.protein_g_per_100g),
-    carbs: Number(food.carbs_g_per_100g),
-    fat: Number(food.fat_g_per_100g),
-  }));
   const timeFormatter = new Intl.DateTimeFormat("vi-VN", {
     hour: "2-digit",
     minute: "2-digit",
@@ -47,6 +39,7 @@ export default async function MealsPage() {
     grams: Number(meal.amount_g),
     calories: Math.round(Number(meal.total_calories)),
     time: timeFormatter.format(new Date(meal.eaten_at)),
+    imageKey: meal.food_image_key_snapshot,
   }));
 
   return (

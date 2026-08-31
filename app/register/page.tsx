@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { AuthShell, SupabaseConfigurationNotice } from "@/components/auth-shell";
+import { AuthShell, SessionConfigurationNotice, SupabaseConfigurationNotice } from "@/components/auth-shell";
 import { RegisterForm } from "@/components/auth-forms";
 import { buildAuthPath, normalizeNextPath } from "@/lib/auth/routing";
 import { getAuthState } from "@/lib/auth/session";
@@ -25,8 +25,10 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
       title="Tạo tài khoản mới"
       description="Đăng ký riêng biệt để lưu nhật ký và mục tiêu của bạn an toàn trên Supabase."
     >
-      {authState.reason === "not-configured" ? (
+      {authState.reason === "supabase-not-configured" ? (
         <SupabaseConfigurationNotice />
+      ) : authState.reason === "session-not-configured" ? (
+        <SessionConfigurationNotice />
       ) : (
         <>
           <RegisterForm nextPath={nextPath} />

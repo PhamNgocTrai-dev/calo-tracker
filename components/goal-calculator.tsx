@@ -3,12 +3,18 @@
 import { useActionState } from "react";
 import { AlertTriangle, CheckCircle2, Gauge, HeartPulse, Save, Scale, Sparkles } from "lucide-react";
 import { saveGoalAction, type GoalActionState } from "@/app/calculator/actions";
-import { activityLevels, type GoalPlan } from "@/lib/domain/calorie";
+import { bmiCategories, activityLevels, type BmiCategoryKey, type GoalPlan } from "@/lib/domain/calorie";
 
 const initialGoalActionState: GoalActionState = { status: "idle" };
 const inputClassName =
   "mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:border-slate-700 dark:bg-slate-950 dark:text-white";
 const numberFormatter = new Intl.NumberFormat("vi-VN");
+const bmiCategoryStyles: Record<BmiCategoryKey, string> = {
+  underweight: "border-sky-300/40 bg-sky-400/10 text-sky-100",
+  healthy: "border-emerald-300/40 bg-emerald-400/10 text-emerald-100",
+  overweight: "border-amber-300/40 bg-amber-400/10 text-amber-100",
+  obesity: "border-rose-300/40 bg-rose-400/10 text-rose-100",
+};
 
 export function GoalCalculator() {
   const [serverState, formAction, pending] = useActionState(saveGoalAction, initialGoalActionState);
@@ -29,7 +35,7 @@ export function GoalCalculator() {
             Thông tin cơ thể và mục tiêu
           </h2>
           <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-            Nhập dữ liệu hiện tại để ước tính BMR, TDEE và mức calo mỗi ngày.
+            Nhập dữ liệu hiện tại để tính BMI, ước tính BMR, TDEE và mức calo mỗi ngày.
           </p>
         </div>
 
@@ -49,7 +55,7 @@ export function GoalCalculator() {
               type="number"
               min="18"
               max="100"
-              defaultValue="30"
+              defaultValue=""
               required
               className={inputClassName}
             />
@@ -63,7 +69,7 @@ export function GoalCalculator() {
               min="120"
               max="230"
               step="0.1"
-              defaultValue="170"
+              defaultValue=""
               required
               className={inputClassName}
             />
@@ -77,7 +83,7 @@ export function GoalCalculator() {
               min="35"
               max="300"
               step="0.1"
-              defaultValue="72"
+              defaultValue=""
               required
               className={inputClassName}
             />
@@ -91,7 +97,7 @@ export function GoalCalculator() {
               min="35"
               max="300"
               step="0.1"
-              defaultValue="66"
+              defaultValue=""
               required
               className={inputClassName}
             />
@@ -104,7 +110,7 @@ export function GoalCalculator() {
               type="number"
               min="1"
               max="104"
-              defaultValue="14"
+              defaultValue=""
               required
               className={inputClassName}
             />
@@ -112,7 +118,7 @@ export function GoalCalculator() {
 
           <label className="text-sm font-semibold text-slate-700 sm:col-span-2 dark:text-slate-200">
             Mức độ vận động
-            <select name="activityLevel" defaultValue="moderate" className={inputClassName}>
+            <select name="activityLevel" defaultValue="" className={inputClassName}>
               {activityLevels.map((level) => (
                 <option key={level.value} value={level.value}>
                   {level.label} — {level.description}
@@ -190,6 +196,8 @@ function PlanResult({ plan }: { plan: GoalPlan }) {
         <span className="text-sm text-slate-400">kcal/ngày</span>
       </div>
 
+      <BmiResultPanel bmi={plan.bmi} />
+
       <div className="mt-7 grid grid-cols-2 gap-3">
         <ResultMetric label="BMR" value={`${numberFormatter.format(plan.bmr)} kcal`} icon={HeartPulse} />
         <ResultMetric label="TDEE" value={`${numberFormatter.format(plan.tdee)} kcal`} icon={Gauge} />
@@ -225,6 +233,62 @@ function PlanResult({ plan }: { plan: GoalPlan }) {
         ))}
       </div>
     </div>
+  );
+}
+
+function BmiResultPanel({ bmi }: { bmi: GoalPlan["bmi"] }) {
+  return (
+    <section
+      className="mt-7 rounded-3xl border border-white/10 bg-white/[0.06] p-5"
+      aria-label={`BMI ${bmi.value}, phân loại ${bmi.label}`}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Chỉ số BMI</p>
+          <div className="mt-2 flex items-baseline gap-2">
+            <strong className="text-4xl font-bold tracking-tight tabular-nums">{bmi.value.toFixed(1)}</strong>
+            <span className="text-sm text-slate-400">kg/m²</span>
+          </div>
+        </div>
+        <span
+          className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-bold ${bmiCategoryStyles[bmi.category]}`}
+        >
+          <CheckCircle2 aria-hidden="true" className="size-4" /> {bmi.label}
+        </span>
+      </div>
+
+      <p className="mt-4 text-sm leading-6 text-slate-200">{bmi.description}</p>
+      <p className="mt-1 text-xs leading-5 text-slate-400">
+        Khoảng tham chiếu bình thường cho người trưởng thành: 18.5–24.9.
+      </p>
+
+      <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="Các nhóm BMI tham khảo">
+        {bmiCategories.map((category) => {
+          const active = category.key === bmi.category;
+
+          return (
+            <div
+              key={category.key}
+              className={`rounded-2xl border p-3 ${
+                active
+                  ? `${bmiCategoryStyles[category.key]} ring-2 ring-white/70 ring-offset-2 ring-offset-slate-950`
+                  : "border-white/10 bg-slate-950/30 text-slate-300"
+              }`}
+            >
+              <p className="text-xs font-bold">{category.label}</p>
+              <p className="mt-1 text-[11px] text-current opacity-75">{category.range}</p>
+              {active ? (
+                <p className="mt-2 text-[10px] font-bold uppercase tracking-wide">Kết quả của bạn</p>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+
+      <p className="mt-4 text-xs leading-5 text-slate-400">
+        BMI là chỉ số sàng lọc và không phản ánh trực tiếp tỷ lệ cơ, mỡ hoặc tình trạng sức khỏe cá nhân.
+      </p>
+    </section>
   );
 }
 

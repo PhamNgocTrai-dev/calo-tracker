@@ -1,21 +1,15 @@
 "use client";
 
 import { useActionState, useMemo, useState } from "react";
-import { CheckCircle2, Plus, Search, UtensilsCrossed } from "lucide-react";
+import { Plus, UtensilsCrossed } from "lucide-react";
 import { addMealAction, type MealActionState } from "@/app/meals/actions";
 import { DeleteMealButton } from "@/components/delete-meal-button";
+import { FoodPicker } from "@/components/food-picker";
+import { FoodThumbnail } from "@/components/food-thumbnail";
+import type { FoodCatalogItem } from "@/lib/domain/foods";
 import { mealTypes } from "@/lib/domain/meals";
 
 const initialMealActionState: MealActionState = { status: "idle" };
-
-export type FoodOption = {
-  id: string;
-  name: string;
-  calories: number;
-  protein: number;
-  carbs: number;
-  fat: number;
-};
 
 export type SavedMealItem = {
   id: string;
@@ -24,13 +18,19 @@ export type SavedMealItem = {
   grams: number;
   calories: number;
   time: string;
+  imageKey: string | null;
 };
 
-export function MealEntryForm({ foods, recentMeals }: { foods: FoodOption[]; recentMeals: SavedMealItem[] }) {
+export function MealEntryForm({
+  foods,
+  recentMeals,
+}: {
+  foods: FoodCatalogItem[];
+  recentMeals: SavedMealItem[];
+}) {
   const [state, formAction, pending] = useActionState(addMealAction, initialMealActionState);
-  const [selectedFoodId, setSelectedFoodId] = useState(foods[0]?.id ?? "");
+  const [selectedFood, setSelectedFood] = useState<FoodCatalogItem | undefined>(foods[0]);
   const [grams, setGrams] = useState(250);
-  const selectedFood = foods.find((food) => food.id === selectedFoodId) ?? foods[0];
   const nutrition = useMemo(() => {
     const ratio = Math.max(0, grams) / 100;
     return {
@@ -61,7 +61,7 @@ export function MealEntryForm({ foods, recentMeals }: { foods: FoodOption[]; rec
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
-              Lưu trực tiếp vào PostgreSQL
+              Dữ liệu dinh dưỡng đã được kiểm tra
             </p>
             <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-950 dark:text-white">
               Thêm món ăn
@@ -72,27 +72,7 @@ export function MealEntryForm({ foods, recentMeals }: { foods: FoodOption[]; rec
           </span>
         </div>
 
-        <label className="mt-7 block text-sm font-semibold text-slate-700 dark:text-slate-200">
-          Chọn món ăn
-          <span className="relative mt-2 block">
-            <Search
-              aria-hidden="true"
-              className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-slate-400"
-            />
-            <select
-              name="foodItemId"
-              value={selectedFoodId}
-              onChange={(event) => setSelectedFoodId(event.target.value)}
-              className="w-full appearance-none rounded-2xl border border-slate-200 bg-white py-3 pr-4 pl-11 text-sm outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:border-slate-700 dark:bg-slate-950"
-            >
-              {foods.map((food) => (
-                <option key={food.id} value={food.id}>
-                  {food.name}
-                </option>
-              ))}
-            </select>
-          </span>
-        </label>
+        <FoodPicker foods={foods} selectedFood={selectedFood} onSelect={setSelectedFood} />
 
         <div className="mt-5 grid grid-cols-2 gap-4">
           <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
@@ -124,14 +104,23 @@ export function MealEntryForm({ foods, recentMeals }: { foods: FoodOption[]; rec
         </div>
 
         <div className="mt-6 rounded-2xl bg-slate-50 p-5 dark:bg-slate-950/60">
-          <div className="flex items-end justify-between gap-4">
-            <div>
-              <p className="text-xs text-slate-500">Năng lượng ước tính</p>
+          <div className="flex items-center gap-4">
+            <FoodThumbnail
+              imageKey={selectedFood?.imageKey}
+              name={selectedFood?.name ?? "Thực phẩm"}
+              className="size-20"
+              sizes="80px"
+              decorative
+            />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-bold text-slate-900 dark:text-white">
+                {selectedFood?.name ?? "Chưa chọn thực phẩm"}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">Năng lượng ước tính trên {grams || 0}g</p>
               <p className="mt-1 text-3xl font-bold text-slate-950 dark:text-white">
                 {nutrition.calories} <span className="text-sm text-slate-500">kcal</span>
               </p>
             </div>
-            <p className="text-xs text-slate-500">trên {grams || 0}g</p>
           </div>
           <dl className="mt-5 grid grid-cols-3 gap-3 border-t border-slate-200 pt-4 text-center dark:border-slate-800">
             <div>
@@ -164,7 +153,7 @@ export function MealEntryForm({ foods, recentMeals }: { foods: FoodOption[]; rec
 
         <button
           type="submit"
-          disabled={pending}
+          disabled={pending || !selectedFood}
           className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 disabled:cursor-wait disabled:opacity-60"
         >
           <Plus aria-hidden="true" className="size-5" />
@@ -197,9 +186,7 @@ export function MealEntryForm({ foods, recentMeals }: { foods: FoodOption[]; rec
                 key={meal.id}
                 className="flex items-center gap-4 rounded-2xl border border-slate-100 p-4 dark:border-slate-800"
               >
-                <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                  <CheckCircle2 aria-hidden="true" className="size-5" />
-                </span>
+                <FoodThumbnail imageKey={meal.imageKey} name={meal.foodName} decorative />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-bold text-slate-900 dark:text-white">{meal.foodName}</p>
                   <p className="mt-1 text-xs text-slate-500">

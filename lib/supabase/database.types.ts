@@ -41,6 +41,21 @@ export type Database = {
           protein_g_per_100g: number;
           carbs_g_per_100g: number;
           fat_g_per_100g: number;
+          food_kind: "dish" | "ingredient" | "seasoning" | "drink";
+          category_slug:
+            | "rice-dishes"
+            | "noodles"
+            | "soups"
+            | "bread"
+            | "protein"
+            | "staples"
+            | "vegetables"
+            | "fruit"
+            | "dairy"
+            | "drinks"
+            | "seasonings"
+            | "other";
+          image_key: string | null;
           source: string;
           source_reference: string | null;
           is_verified: boolean;
@@ -57,6 +72,21 @@ export type Database = {
           protein_g_per_100g?: number;
           carbs_g_per_100g?: number;
           fat_g_per_100g?: number;
+          food_kind?: "dish" | "ingredient" | "seasoning" | "drink";
+          category_slug?:
+            | "rice-dishes"
+            | "noodles"
+            | "soups"
+            | "bread"
+            | "protein"
+            | "staples"
+            | "vegetables"
+            | "fruit"
+            | "dairy"
+            | "drinks"
+            | "seasonings"
+            | "other";
+          image_key?: string | null;
           source: string;
           source_reference?: string | null;
           is_verified?: boolean;
@@ -74,6 +104,7 @@ export type Database = {
           food_item_id: string | null;
           meal_type: Database["public"]["Enums"]["meal_type"];
           food_name_snapshot: string;
+          food_image_key_snapshot: string | null;
           amount_g: number;
           calories_per_100g: number;
           protein_g_per_100g: number;
@@ -94,6 +125,7 @@ export type Database = {
           food_item_id?: string | null;
           meal_type: Database["public"]["Enums"]["meal_type"];
           food_name_snapshot: string;
+          food_image_key_snapshot?: string | null;
           amount_g: number;
           calories_per_100g: number;
           protein_g_per_100g?: number;
@@ -141,6 +173,24 @@ export type Database = {
           updated_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["goals"]["Insert"]>;
+        Relationships: [];
+      };
+      water_entries: {
+        Row: {
+          id: string;
+          user_id: string;
+          amount_ml: number;
+          drank_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          amount_ml: number;
+          drank_at?: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["water_entries"]["Insert"]>;
         Relationships: [];
       };
       workout_reminders: {

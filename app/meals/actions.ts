@@ -1,9 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getFoodCatalog } from "@/lib/data/foods";
+import { getAuthenticatedMutationContext, getAuthFailureMessage } from "@/lib/auth/session";
+import { foodSearchSchema, type FoodCatalogItem, type FoodSearchInput } from "@/lib/domain/foods";
 import { deleteMealSchema, mealEntrySchema } from "@/lib/domain/meals";
-import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type MealActionState = {
   status: "idle" | "error" | "success";
@@ -14,10 +15,6 @@ export async function addMealAction(
   _previousState: MealActionState,
   formData: FormData,
 ): Promise<MealActionState> {
-  if (!isSupabaseConfigured()) {
-    return { status: "error", message: "Supabase chưa được cấu hình." };
-  }
-
   const parsed = mealEntrySchema.safeParse({
     foodItemId: formData.get("foodItemId"),
     amountG: Number(formData.get("amountG")),
@@ -31,16 +28,15 @@ export async function addMealAction(
     };
   }
 
-  const supabase = await createSupabaseServerClient({ writableCookies: true });
-  const { data: authData, error: authError } = await supabase.auth.getUser();
-
-  if (authError || !authData.user) {
-    return { status: "error", message: "Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại." };
+  const auth = await getAuthenticatedMutationContext();
+  if (!auth.ok) {
+    return { status: "error", message: getAuthFailureMessage(auth.reason) };
   }
+  const { supabase, user } = auth;
 
   const { data: food, error: foodError } = await supabase
     .from("food_items")
-    .select("id, name, calories_per_100g, protein_g_per_100g, carbs_g_per_100g, fat_g_per_100g")
+    .select("id, name, image_key, calories_per_100g, protein_g_per_100g, carbs_g_per_100g, fat_g_per_100g")
     .eq("id", parsed.data.foodItemId)
     .single();
 
@@ -49,10 +45,11 @@ export async function addMealAction(
   }
 
   const { error: insertError } = await supabase.from("meal_entries").insert({
-    user_id: authData.user.id,
+    user_id: user.id,
     food_item_id: food.id,
     meal_type: parsed.data.mealType,
     food_name_snapshot: food.name,
+    food_image_key_snapshot: food.image_key,
     amount_g: parsed.data.amountG,
     calories_per_100g: food.calories_per_100g,
     protein_g_per_100g: food.protein_g_per_100g,
@@ -69,14 +66,28 @@ export async function addMealAction(
   return { status: "success", message: "Đã lưu bữa ăn vào PostgreSQL." };
 }
 
+export async function searchFoodsAction(rawInput: Partial<FoodSearchInput>): Promise<FoodCatalogItem[]> {
+  const parsed = foodSearchSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    return [];
+  }
+
+  const auth = await getAuthenticatedMutationContext();
+  if (!auth.ok) {
+    return [];
+  }
+
+  try {
+    return await getFoodCatalog(parsed.data);
+  } catch {
+    return [];
+  }
+}
+
 export async function deleteMealAction(
   _previousState: MealActionState,
   formData: FormData,
 ): Promise<MealActionState> {
-  if (!isSupabaseConfigured()) {
-    return { status: "error", message: "Supabase chưa được cấu hình." };
-  }
-
   const parsed = deleteMealSchema.safeParse({
     mealId: formData.get("mealId"),
   });
@@ -88,18 +99,17 @@ export async function deleteMealAction(
     };
   }
 
-  const supabase = await createSupabaseServerClient({ writableCookies: true });
-  const { data: authData, error: authError } = await supabase.auth.getUser();
-
-  if (authError || !authData.user) {
-    return { status: "error", message: "Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại." };
+  const auth = await getAuthenticatedMutationContext();
+  if (!auth.ok) {
+    return { status: "error", message: getAuthFailureMessage(auth.reason) };
   }
+  const { supabase, user } = auth;
 
   const { data: deletedMeal, error: deleteError } = await supabase
     .from("meal_entries")
     .delete()
     .eq("id", parsed.data.mealId)
-    .eq("user_id", authData.user.id)
+    .eq("user_id", user.id)
     .select("id")
     .maybeSingle();
 

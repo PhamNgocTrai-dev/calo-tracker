@@ -6,8 +6,10 @@ import { GoalProgressCard } from "@/components/goal-progress-card";
 import { MacroProgress } from "@/components/macro-progress";
 import { MealList, type MealListItem } from "@/components/meal-list";
 import { StatCard } from "@/components/stat-card";
+import { WaterTrackerCard } from "@/components/water-tracker-card";
 import { requireAuthenticatedUser } from "@/lib/auth/session";
-import { getLiveDashboardData } from "@/lib/data/dashboard";
+import { getLiveDashboardData, type DashboardWater } from "@/lib/data/dashboard";
+import type { BmiResult } from "@/lib/domain/calorie";
 
 export default async function Home() {
   await requireAuthenticatedUser("/");
@@ -25,7 +27,9 @@ export default async function Home() {
         fat={{ current: data.fatG, target: null, unit: "g" }}
         mealCount={data.mealCount}
         currentWeight={data.currentWeight}
+        bmi={data.bmi}
         meals={data.recentMeals}
+        water={data.water}
         goal={data.goal}
       />
     </div>
@@ -49,7 +53,9 @@ function Dashboard({
   fat,
   mealCount,
   currentWeight,
+  bmi,
   meals,
+  water,
   goal,
 }: {
   dateLabel: string;
@@ -60,7 +66,9 @@ function Dashboard({
   fat: MacroValue;
   mealCount: number;
   currentWeight: number | null;
+  bmi: BmiResult | null;
   meals: MealListItem[];
+  water: DashboardWater;
   goal: GoalValue | null;
 }) {
   return (
@@ -104,14 +112,20 @@ function Dashboard({
         <StatCard
           label="Cân nặng"
           value={currentWeight === null ? "Chưa có" : `${currentWeight} kg`}
-          helper={goal ? `Mục tiêu ${goal.targetWeight} kg` : "Lưu mục tiêu để theo dõi"}
+          helper={
+            bmi
+              ? `BMI ${bmi.value.toFixed(1)} · ${bmi.label}`
+              : goal
+                ? `Mục tiêu ${goal.targetWeight} kg`
+                : "Lưu mục tiêu để theo dõi"
+          }
           icon={Scale}
           tone="violet"
         />
         <StatCard
           label="Nước uống"
-          value="Chưa hỗ trợ"
-          helper="Sẽ bổ sung ở phiên bản sau"
+          value={`${water.totalMl.toLocaleString("vi-VN")} ml`}
+          helper={`Mục tiêu ${water.targetMl.toLocaleString("vi-VN")} ml`}
           icon={Droplets}
           tone="blue"
         />
@@ -123,6 +137,8 @@ function Dashboard({
           tone="amber"
         />
       </section>
+
+      <WaterTrackerCard {...water} />
 
       <section className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]">
         <DailyEnergyCard target={calorieTarget} consumed={caloriesConsumed} burned={null} />

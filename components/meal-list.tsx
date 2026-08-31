@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, Clock3, UtensilsCrossed } from "lucide-react";
 import { DeleteMealButton } from "@/components/delete-meal-button";
+import { FoodThumbnail } from "@/components/food-thumbnail";
 
 export type MealListItem = {
   id: string;
@@ -9,6 +10,7 @@ export type MealListItem = {
   time: string;
   calories: number;
   protein: number;
+  imageKey: string | null;
 };
 
 export function MealList({ meals }: { meals: MealListItem[] }) {
@@ -43,9 +45,7 @@ export function MealList({ meals }: { meals: MealListItem[] }) {
         <ul className="mt-5 divide-y divide-slate-100 dark:divide-slate-800">
           {meals.map((meal) => (
             <li key={meal.id} className="flex items-center gap-4 py-4 first:pt-0 last:pb-0">
-              <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                <UtensilsCrossed aria-hidden="true" className="size-5" />
-              </span>
+              <FoodThumbnail imageKey={meal.imageKey} name={meal.name} decorative />
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold text-slate-900 dark:text-white">{meal.name}</p>
                 <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
